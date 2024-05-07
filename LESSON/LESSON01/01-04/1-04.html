@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1-04</title>
+  <link rel="stylesheet" href="reset.css">
+  <link rel="stylesheet" href="1-04.css">
+</head>
+<body>
+  <div class="container">
+
+    <div class="row">
+      <div class="col2"><p>吾輩は猫である。名前はまだ無い。<br>
+        どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。吾輩はここで始めて人間というものを見た。</p></div>
+      <div class="col2"><p>しかもあとで聞くとそれは書生という人間中で一番獰悪な種族であったそうだ。この書生というのは時々我々を捕まえて煮にて食うという話である。しかしその当時は何という考もなかったから別段恐しいとも思わなかった。ただ彼の掌に載せられてスーと持ち上げられた時何だかフワフワした感じがあったばかりである。</p></div>
+    </div>
+    
+  </div>
+</body>
+</html>
+
+- provide(:title, "店舗詳細")
+- provide(:bodyClass, "top-user")
+
+:css
+  .c-header-user__title .is-eng {
+    color: #111111;
+    font-weight: normal;
+  }
+  .l-section.is-gradation {
+    background: #E3E1D8;
+  }
+  a.c-button.is-whitening {
+    border: 1px solid #272727;
+    background-color: #fff;
+    color: #272727;
+    font-weight: normal;
+  }
+  a.c-button.is-whitening:hover {
+    color: #272727;
+  }
+  .c-block-table__th {
+    color: #111111;
+  }
+  td:has(.is-red) {
+    background-color: #FFE1D5;
+  }
+  .is-red {
+    color: #CB4444;
+  }
+  td:has(.is-blue) {
+    background-color: #DEF1FF;
+  }
+  .is-blue {
+    color: #1B729F;
+  }
+
+#loading
+  .spinner
+  %p.loading-text 対象店舗の予約状況を取得中
+%main.l-main.is-small
+  .c-header-user
+    .c-header-user__inner
+      .l-container
+        - if !current_user&.is_trial_finished
+          .c-header-user__title
+            %b.is-eng RESERVATION
+            %span.is-ja 予約日時選択
+        - else
+          .c-header-user__image.u-text-center
+            - if @store.logo?
+              = image_tag @store.logo.url
+            - else
+              = @store.franchise.name
+  %section.l-section.is-gradation
+    .l-container.is-white
+      .c-block-table
+        .c-block-table__list
+          .c-block-table__item
+            .c-image-whitening
+              .c-image-whitening__title
+                = @store.name
+              .c-image-whitening__image
+                - if @store.image?
+                  = image_tag @store.image.url
+          .c-block-table__item
+            .c-block-table__tbody
+              .c-block-table__th 予約日時の選択
+              - if current_user&.remaining_tickets?(@store)
+                .c-block-table__td
+                  = "[残りチケット数：#{current_user.remaining_tickets_number(@store)}枚]"
+          -# ストアが停止している時
+          - if @store.is_enable
+            - if !current_user&.is_trial_finished
+              .c-button-slide__text
+                お好きな日時を選択してください
+            - else
+              .c-button-slide__text
+                ※前回の施術から3日間は予約できません
+              .c-button-slide__text
+                ※一回の予約時間は50分です
+            - if current_user.blank? && params[:select_trial_menu].blank? && @flag != "line"
+              .c-button-slide__text
+                【初めての方は
+                = link_to "会員登録", new_user_registration_path(store_id: @store.id), class: "u-text-original-link-color"
+                へお進みください】
+            .c-button-slide__content
+              %button.c-button-slide__button{style: "display:none"} ← 前の週
+              %div
+              %button.c-button-slide__button 次の週 →
+            %table.c-table-reservation
+              = render "shared/calendar_header", week: one_week_after_n_weeks(0)
+              %tbody
+                - @store.business_hours_each_user(current_user: current_user).each_with_index do |time, index|
+                  %tr
+                    %td
+                      = time
+                    - 7.times do |i|
+                      %td
+                        - if link_to(new_user_session_path(store_id: @store.id), class: "your-link-classes")? "◎" : "×"
+                          = is_reserved?(date: i, time: index, store: @store, last_reservation: @last_reservation, next_week: false, option: params)
+            %table.c-table-reservation{style: "display:none"}
+              = render "shared/calendar_header", week: one_week_after_n_weeks(1)
+              %tbody
+                - @store.business_hours_each_user(current_user: current_user).each_with_index do |time, index|
+                  %tr
+                    %td
+                      = time
+                    - 7.times do |i|
+                      %td
+                        = is_reserved?(date: i, time: index, store: @store, last_reservation: @last_reservation, next_week: true, option: params)
+          - else
+            %p.u-mbs.is-xs
+              %strong ストアが停止しているため、予約できません。
+          - if current_user.present? && @plan && @store.show_coupon_info?(@plan) && @franchise.id != 6
+            -# SHIROIRO関連店舗はクーポン不採用
+            .c-block-table__item
+              = link_to coupon_info_users_store_path(@store.id) do
+                = image_tag 'banner_referral.png', class: "banner_referral"
+          - if @flag != "line"
+            .c-block-table__item
+              .c-block-table__tbody
+                .c-block-table__th 営業時間
+                .c-block-table__td
+                  = @store.business_hours_as_html
+          - if @flag != "line"
+            .c-block-table__item
+              .c-block-table__tbody
+                .c-block-table__th 住所
+                .c-block-table__td
+                  = @store.address
+              .c-map.u-mbs.is-xs.is-top
+                .c-map__google
+                  <iframe src="#{@store.google_map_script}" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+                .c-map__button
+                  = link_to @franchise.contact, class: "c-button is-md is-line is-radius" do
+                    %i.fab.fa-line
+                    LINEでお問い合わせ
+          - if @flag == "line"
+            .c-forms__submit
+              = link_to "店舗選択へ戻る", select_users_stores_path, class:"c-button is-xlg is-whitening"
+      %hr.c-hr
+        .u-text-center
+          = link_to "#{users_store_path(@store)}/business", class: "" do
+            特定商取引法に基づく表記
+
+:javascript
+  window.onload = function() {
+    const spinner = document.getElementById('loading');
+    spinner.classList.add('off');
+  }
